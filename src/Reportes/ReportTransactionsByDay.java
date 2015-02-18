@@ -30,13 +30,13 @@ import au.com.billingbuddy.exceptions.objects.ReportFacadeException;
 import au.com.billingbuddy.exceptions.objects.TransactionDAOException;
 import au.com.billingbuddy.vo.objects.TransactionVO;
 
-public class ReporteAmountByDay {
+public class ReportTransactionsByDay {
 	
 	private static int dimensionXScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.dimensionXScreen"));
 	private static int dimensionYScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.dimensionYScreen"));
-	private static int adjustmentDimensionYScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.adjustmentDimensionYScreen"));
+//	private static int adjustmentDimensionYScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.adjustmentDimensionYScreen"));
 	
-	private double initialXPositionGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.initialXPositionGrahic"));
+//	private double initialXPositionGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.initialXPositionGrahic"));
 	private double initialYPositionGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.initialYPositionGrahic"));
 	
 	
@@ -61,12 +61,12 @@ public class ReporteAmountByDay {
 	
 	private ReportFacade reportFacade = ReportFacade.getInstance();
 	
-	public ReporteAmountByDay() {
+	public ReportTransactionsByDay() {
 		try {
 			TransactionDAO transactionDAO = new TransactionDAO();
 			TransactionVO transactionVO = new TransactionVO();
-			transactionVO.setInitialDateReport("2014-02-03");
-			CreateXml(transactionDAO.searchAmountsByDay(transactionVO));
+			transactionVO.setInitialDateReport("2015-02-03");
+			CreateXml(transactionDAO.searchTransactionsByDay(transactionVO));
 		} catch (TransactionDAOException e) {
 			e.printStackTrace();
 		} catch (MySQLConnectionException e) {
@@ -77,8 +77,8 @@ public class ReporteAmountByDay {
 	public DOMSource CreateXml(ArrayList<TransactionVO> listaReport) {
 		DOMSource domSource = null;
 		try {
-			TransactionVO transactionVOMAX = Collections.max(listaReport,new SortListByAmountDesc());
-			TransactionVO transactionVOMIN = Collections.max(listaReport,new SortListByAmountAsc());
+			TransactionVO transactionVOMAX = Collections.max(listaReport,new SortListByTransactionsDesc());
+			TransactionVO transactionVOMIN = Collections.max(listaReport,new SortListByTransactionsAsc());
 			mayorY = Integer.parseInt(transactionVOMAX.getAmountDateReport());
 			minorY = Integer.parseInt(transactionVOMIN.getAmountDateReport());
 			
@@ -347,22 +347,18 @@ public class ReporteAmountByDay {
 		return (value * dimensionScreen)/mayorY;
 	}
 	
-	public String transformScale(int dimensionYScreen, double valueToTransfor){
-		return String.valueOf(dimensionYScreen - valueToTransfor + adjustmentDimensionYScreen);
-	}
-	
 	public static void main(String[] args) {
-		new ReporteAmountByDay();
+		new ReportTransactionsByDay();
 	}
 
-	class SortListByAmountDesc implements Comparator<TransactionVO>{
+	class SortListByTransactionsDesc implements Comparator<TransactionVO>{
 		@Override
 		public int compare(TransactionVO transactionVOA, TransactionVO transactionVOB) {
 			return Integer.parseInt(transactionVOA.getAmountDateReport()) < Integer.parseInt(transactionVOB.getAmountDateReport()) ? -1 : Integer.parseInt(transactionVOA.getAmountDateReport()) == Integer.parseInt(transactionVOB.getAmountDateReport()) ? 0 : 1;
 		}
 	}
 	
-	class SortListByAmountAsc implements Comparator<TransactionVO>{
+	class SortListByTransactionsAsc implements Comparator<TransactionVO>{
 		@Override
 		public int compare(TransactionVO transactionVOA, TransactionVO transactionVOB) {
 			return Integer.parseInt(transactionVOA.getAmountDateReport()) > Integer.parseInt(transactionVOB.getAmountDateReport()) ? -1 : Integer.parseInt(transactionVOA.getAmountDateReport()) == Integer.parseInt(transactionVOB.getAmountDateReport()) ? 0 : 1;

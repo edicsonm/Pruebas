@@ -5,7 +5,6 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.ListResourceBundle;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -19,137 +18,129 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
-import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
 import au.com.billingbuddy.business.objects.ReportFacade;
 import au.com.billingbuddy.common.objects.ConfigurationSystem;
+import au.com.billingbuddy.common.objects.Utilities;
+import au.com.billingbuddy.dao.objects.TransactionDAO;
+import au.com.billingbuddy.exceptions.objects.MySQLConnectionException;
 import au.com.billingbuddy.exceptions.objects.ReportFacadeException;
+import au.com.billingbuddy.exceptions.objects.TransactionDAOException;
 import au.com.billingbuddy.vo.objects.TransactionVO;
 
 public class ReporteChargesByDay {
 	
 	private static int dimensionXScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.dimensionXScreen"));
 	private static int dimensionYScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.dimensionYScreen"));
-	private static int adjustmentDimensionYScreen = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.adjustmentDimensionYScreen"));
 	
+	private double initialYPositionGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.initialYPositionGrahic"));
+	private double longYGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.longYGrahic"));
 	
-	private static int initialXPosition = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.initialXPosition"));
-	private static int initialYPosition = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.initialYPosition"));
+	private double escalaX;
+	private double mayorY;
+	private double minorY;
+	private double mayorX;
+	
+	private double rightMargenReferenceLine = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.rightMargenReferenceLine"));
+	private double leftMargenReferenceLine = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.leftMargenReferenceLine"));
+	
+	private double rightMargenGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.rightMargenGrahic"));
+	private double leftMargenGrahic = Integer.parseInt(ConfigurationSystem.getInstance().getKey("report.leftMargenGrahic"));
+	
+	private double scaleYFactor = initialYPositionGrahic + longYGrahic;
+	private double scaleXFactor = dimensionXScreen - (leftMargenGrahic + rightMargenGrahic);
+	
+	private double longXGrahic = dimensionXScreen-(leftMargenGrahic + rightMargenGrahic);
+	
 	
 	private ReportFacade reportFacade = ReportFacade.getInstance();
-//	ConfigurationSystem configurationSystem = ConfigurationSystem.getInstance();
 	
 	public ReporteChargesByDay() {
 		try {
+			TransactionDAO transactionDAO = new TransactionDAO();
 			TransactionVO transactionVO = new TransactionVO();
-			transactionVO.setInitialDateReport("2015-01-03");
-			CreateXml(reportFacade.searchChargesByDay(transactionVO));
-		} catch (ReportFacadeException e) {
+			transactionVO.setInitialDateReport("2014-03-01");
+			CreateXml(transactionDAO.searchChargesByDay(transactionVO));
+		} catch (TransactionDAOException e) {
 			e.printStackTrace();
-			System.out.println("e.getMessage(): " + e.getMessage());
-			System.out.println("e.getErrorMenssage(): " + e.getErrorMenssage());
-			System.out.println("e.getErrorCode(): " + e.getErrorCode());
+		} catch (MySQLConnectionException e) {
+			e.printStackTrace();
 		}
 	}
 	
 	public DOMSource CreateXml(ArrayList<TransactionVO> listaReport) {
 		DOMSource domSource = null;
 		try {
-			TransactionVO transactionVOMAX = Collections.max(listaReport,new ComparatorTransactionVO("MajorY"));
-			int mayorY = Integer.parseInt(transactionVOMAX.getTotalDateReport());
-			TransactionVO transactionVOMIN = Collections.max(listaReport,new ComparatorTransactionVO("MinorY"));
-			int minorY = Integer.parseInt(transactionVOMIN.getTotalDateReport());
+			TransactionVO transactionVOMAX = Collections.max(listaReport,new SortListByChargesDesc());
+			TransactionVO transactionVOMIN = Collections.max(listaReport,new SortListByChargesAsc());
+			mayorY = Integer.parseInt(transactionVOMAX.getTotalDateReport());
+			minorY = Integer.parseInt(transactionVOMIN.getTotalDateReport());
 			
-			int mayorX = listaReport.size();
-			double mayorRight = 0;
+			if (mayorY == minorY) minorY = 0;
+			mayorX = listaReport.size() + 1;
+			escalaX = longXGrahic / (listaReport.size() + 1);
 			
-			String path = "M";
-			String coordinate = "";
+			System.out.println("mayorY: " +  mayorY);
+			System.out.println("minorY: " +  minorY);
+			System.out.println("mayorX: " +  mayorX);
+			System.out.println("escalaX: " +  escalaX);
+			System.out.println("scaleYFactor: " +  scaleYFactor);
+			System.out.println("scaleXFactor: " +  scaleXFactor);
+			System.out.println("longXGrahic: " + longXGrahic);
+			
 			DocumentBuilderFactory documentFactory = DocumentBuilderFactory.newInstance();
 			DocumentBuilder documentBuilder = documentFactory.newDocumentBuilder();
 
-			// define root elements
 			Document document = documentBuilder.newDocument();
 			Element rootElement = document.createElement("grafica");
 			document.appendChild(rootElement);
-			int position = 0;
 			
-			for (int i = listaReport.size()-1 ;i > 0 ; i--) {
+			double positionX = leftMargenGrahic + escalaX;
+			System.out.println("positionX: " + positionX);
+			double positionY = 0;
+			String path = "";
+			Collections.sort(listaReport,new SortListByDate());
+			for (TransactionVO transactionVO : listaReport) {
+				positionY = scaleYFactor - scaleValue(longYGrahic, Double.parseDouble(transactionVO.getTotalDateReport()));
+				System.out.println("("+transactionVO.getDateReport()+" , "+transactionVO.getTotalDateReport()+") - ("+positionX+" , "+ positionY +")");
+				path += "L"+positionX +","+ positionY + " ";
 				
-				TransactionVO transactionVO = (TransactionVO)listaReport.get(i);
 				Element point = document.createElement("point");
 				rootElement.appendChild(point);
-				
-				coordinate = String.valueOf((scaleXValue(dimensionXScreen-initialXPosition, position += 1, mayorX)));
+								
 				Element pointx = document.createElement("pointx");
-				pointx.appendChild(document.createTextNode(coordinate));
+				pointx.appendChild(document.createTextNode(String.valueOf(positionX)));
 				point.appendChild(pointx);
 				
-				if(mayorRight < Double.parseDouble(coordinate)) mayorRight = Double.parseDouble(coordinate);
+				Element pointxReference = document.createElement("pointxReference");
+				pointxReference.appendChild(document.createTextNode(String.valueOf(positionX+10)));
+				point.appendChild(pointxReference);
 				
-				path = path + " L" + coordinate;
-				coordinate = transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, Integer.parseInt(transactionVO.getTotalDateReport()), mayorY));
+				
 				Element pointy = document.createElement("pointy");
-				pointy.appendChild(document.createTextNode(coordinate));
+				pointy.appendChild(document.createTextNode(String.valueOf(positionY)));
 				point.appendChild(pointy);
 				
 				Element label = document.createElement("label");
 				label.appendChild(document.createTextNode("("+transactionVO.getDateReport()+" ,"+transactionVO.getTotalDateReport()+")"));
 				point.appendChild(label);
-				path = path + "," + coordinate;
+				
+				Element date = document.createElement("date");
+				date.appendChild(document.createTextNode(Utilities.formatDate(transactionVO.getDateReport(), 2, 4)));
+				point.appendChild(date);
+				
+				positionX += escalaX;
 				
 			}
 			
-			path = path + " L" + mayorRight;
-			path = path + "," + transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, minorY, mayorY));
-			path = path.replace("M L", "M");
-			
-			Element pathLinearGradient = document.createElement("pathLinearGradient");
-			rootElement.appendChild(pathLinearGradient);
-			
-			Element value = document.createElement("value");
-			value.appendChild(document.createTextNode(path));
-			pathLinearGradient.appendChild(value);			
-			
-			Element highestReference = document.createElement("highestReference");
-			rootElement.appendChild(highestReference);
-			
-			Element firtPoint = document.createElement("firtPointHighestReference");
-			firtPoint.appendChild(document.createTextNode("M"+initialXPosition+"," + (transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, mayorY, mayorY)))));
-			highestReference.appendChild(firtPoint);
-			
-			Element secondPoint = document.createElement("secondPointHighestReference");
-			secondPoint.appendChild(document.createTextNode("L"+(dimensionXScreen+initialXPosition) +","+ (transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, mayorY, mayorY)))));
-			highestReference.appendChild(secondPoint);
-			
-			Element middleReference = document.createElement("middleReference");
-			rootElement.appendChild(middleReference);
-			
-			firtPoint = document.createElement("firtPointMiddleReference");
-			firtPoint.appendChild(document.createTextNode("M"+initialXPosition+"," + (transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, (mayorY - minorY)/2, mayorY)))));
-			middleReference.appendChild(firtPoint);
-			
-			secondPoint = document.createElement("secondPointMiddleReference");
-			secondPoint.appendChild(document.createTextNode("L"+dimensionXScreen +","+ (transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, (mayorY - minorY)/2, mayorY)))));
-			middleReference.appendChild(secondPoint);
-			
-			Element lessReference = document.createElement("lessReference");
-			rootElement.appendChild(lessReference);
-			
-			firtPoint = document.createElement("firtPointLessReference");
-			firtPoint.appendChild(document.createTextNode("M"+initialXPosition+"," + (transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, minorY, mayorY)))));
-			lessReference.appendChild(firtPoint);
-			
-			secondPoint = document.createElement("secondPointLessReference");
-			secondPoint.appendChild(document.createTextNode("L"+dimensionXScreen +","+ (transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, minorY, mayorY)))));
-			lessReference.appendChild(secondPoint);			
+			positionX -= escalaX;
 			
 			Element dimensionX = document.createElement("dimensionX");
 			rootElement.appendChild(dimensionX);
 			
-			value = document.createElement("value");
+			Element value = document.createElement("value");
 			value.appendChild(document.createTextNode(String.valueOf(dimensionXScreen)));
 			dimensionX.appendChild(value);
 			
@@ -157,56 +148,130 @@ public class ReporteChargesByDay {
 			rootElement.appendChild(dimensionY);
 			
 			value = document.createElement("value");
-			value.appendChild(document.createTextNode(String.valueOf(dimensionXScreen)));
+			value.appendChild(document.createTextNode(String.valueOf(dimensionYScreen)));
 			dimensionY.appendChild(value);
 			
-			Element labelHighestReference = document.createElement("labelHighestReference");
-			rootElement.appendChild(labelHighestReference);
+			path = "M" + (leftMargenGrahic + escalaX)+","+scaleYFactor + " "+path + "L"+positionX+","+scaleYFactor;
 			
-			firtPoint = document.createElement("firtPointLabelHighestReference");
-			firtPoint.appendChild(document.createTextNode(String.valueOf(dimensionXScreen)));
-			labelHighestReference.appendChild(firtPoint);
+			Element pathLinearGradient = document.createElement("pathLinearGradient");
+			rootElement.appendChild(pathLinearGradient);
+			value = document.createElement("value");
+			value.appendChild(document.createTextNode(path));
+			pathLinearGradient.appendChild(value);
 			
-			secondPoint = document.createElement("secondPointLabelHighestReference");
-			secondPoint.appendChild(document.createTextNode(String.valueOf(Double.parseDouble(transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, mayorY, mayorY))) - 2)));
-			labelHighestReference.appendChild(secondPoint);
+			/* Init HighestReference */
+			positionY = scaleYFactor - scaleValue(longYGrahic, mayorY);
+			Element highestReference = document.createElement("highestReference");
+			rootElement.appendChild(highestReference);
+			
+			Element firstPoint = document.createElement("firtPointHighestReference");
+			firstPoint.appendChild(document.createTextNode("M" + leftMargenReferenceLine +","+ (positionY)));
+			highestReference.appendChild(firstPoint);
+			
+			Element secondPoint = document.createElement("secondPointHighestReference");
+			secondPoint.appendChild(document.createTextNode("L"+(dimensionXScreen - rightMargenReferenceLine) +","+ (positionY)));
+			highestReference.appendChild(secondPoint);
+
+			Element positionLabelHighestReference = document.createElement("positionLabelHighestReference");
+			rootElement.appendChild(positionLabelHighestReference);
+			
+			value = document.createElement("X");
+			value.appendChild(document.createTextNode(String.valueOf(dimensionXScreen - rightMargenReferenceLine - 10)));
+			positionLabelHighestReference.appendChild(value);
+			
+			value = document.createElement("Y");
+			value.appendChild(document.createTextNode(String.valueOf(positionY - 10)));
+			positionLabelHighestReference.appendChild(value);
 			
 			value = document.createElement("value");
 			value.appendChild(document.createTextNode(String.valueOf(mayorY)));
-			labelHighestReference.appendChild(value);
+			positionLabelHighestReference.appendChild(value);
 			
+			/* Finish HighestReference */
 			
-			Element labelMiddleReference = document.createElement("labelMiddleReference");
-			rootElement.appendChild(labelMiddleReference);
+			/* Init MiddleReference */
+			positionY = ((scaleYFactor - scaleValue(longYGrahic, minorY)) + (scaleYFactor - scaleValue(longYGrahic, mayorY)))/2;
+			Element middleReference = document.createElement("middleReference");
+			rootElement.appendChild(middleReference);
 			
-			firtPoint = document.createElement("firtPointLabelMiddleReference");
-			firtPoint.appendChild(document.createTextNode(String.valueOf(dimensionXScreen)));
-			labelMiddleReference.appendChild(firtPoint);
+			firstPoint = document.createElement("firtPointMiddleReference");
+			firstPoint.appendChild(document.createTextNode("M" + leftMargenReferenceLine +","+ (positionY)));
+			middleReference.appendChild(firstPoint);
 			
-			secondPoint = document.createElement("secondPointLabelMiddleReference");
-			secondPoint.appendChild(document.createTextNode(String.valueOf(Double.parseDouble(transformScale(dimensionYScreen,scaleYValue(dimensionYScreen, (mayorY - minorY)/2, mayorY))) - 2)));
-			labelMiddleReference.appendChild(secondPoint);
+			secondPoint = document.createElement("secondPointMiddleReference");
+			secondPoint.appendChild(document.createTextNode("L"+(dimensionXScreen - rightMargenReferenceLine) +","+ (positionY)));
+			middleReference.appendChild(secondPoint);
+			
+			Element positionLabelMiddleReference = document.createElement("positionLabelMiddleReference");
+			rootElement.appendChild(positionLabelMiddleReference);
+			
+			value = document.createElement("X");
+			value.appendChild(document.createTextNode(String.valueOf(dimensionXScreen - rightMargenReferenceLine - 10)));
+			positionLabelMiddleReference.appendChild(value);
+			
+			value = document.createElement("Y");
+			value.appendChild(document.createTextNode(String.valueOf(positionY - 10)));
+			positionLabelMiddleReference.appendChild(value);
 			
 			value = document.createElement("value");
 			value.appendChild(document.createTextNode(String.valueOf((mayorY - minorY)/2)));
-			labelMiddleReference.appendChild(value);
+			positionLabelMiddleReference.appendChild(value);
 			
-						
-			// creating and writing to xml file
+			/* Finish MiddleReference */
+			
+			
+			/* Init LessReference */
+			positionY = scaleYFactor - scaleValue(longYGrahic, minorY);
+			Element lessReference = document.createElement("lessReference");
+			rootElement.appendChild(lessReference);
+			
+			firstPoint = document.createElement("firtPointLessReference");
+			firstPoint.appendChild(document.createTextNode("M" + (leftMargenReferenceLine)+","+ (positionY)));
+			lessReference.appendChild(firstPoint);
+			
+			secondPoint = document.createElement("secondPointLessReference");
+			secondPoint.appendChild(document.createTextNode("L"+(dimensionXScreen - rightMargenReferenceLine) +","+ (positionY)));
+			lessReference.appendChild(secondPoint);
+			
+			Element positionLabelLessReference = document.createElement("positionLabelLessReference");
+			rootElement.appendChild(positionLabelLessReference);
+			
+			value = document.createElement("X");
+			value.appendChild(document.createTextNode(String.valueOf(dimensionXScreen - rightMargenReferenceLine - 10)));
+			positionLabelLessReference.appendChild(value);
+			
+			value = document.createElement("Y");
+			value.appendChild(document.createTextNode(String.valueOf(positionY - 10)));
+			positionLabelLessReference.appendChild(value);
+			
+			value = document.createElement("value");
+			value.appendChild(document.createTextNode(String.valueOf(minorY)));
+			positionLabelLessReference.appendChild(value);
+			
+			/* Finish LessReference */
+			
+			positionY = scaleYFactor - scaleValue(longYGrahic, minorY) + 20;
+			Element scaleXReference = document.createElement("scaleXReference");
+			rootElement.appendChild(scaleXReference);
+			value = document.createElement("value");
+			value.appendChild(document.createTextNode(String.valueOf(positionY)));
+			scaleXReference.appendChild(value);
+			
+//						
+//			// creating and writing to xml file
 			TransformerFactory transformerFactory = TransformerFactory.newInstance();
 			Transformer transformer = transformerFactory.newTransformer();
 //			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 			transformer.setOutputProperty(OutputKeys.INDENT, "yes");
 			domSource = new DOMSource(document);
 			
-			printContent(domSource);
+//			printContent(domSource);
 			printDocument(domSource);
+			printDocumentHTML(domSource);
 			
 			StreamResult streamResult = new StreamResult(new File("/run/media/Edicson/SVG Example/createFile.xml"));
 			transformer.transform(domSource, streamResult);
 			System.out.println("File saved to specified path!");
-			System.out.println("position " + position);
-			System.out.println("mayorY " + mayorY);
 		} catch (ParserConfigurationException pce) {
 			pce.printStackTrace();
 		} catch (TransformerException tfe) {
@@ -215,8 +280,29 @@ public class ReporteChargesByDay {
 		return domSource;
 	}
 	
-	public void printDocument(DOMSource source) throws TransformerConfigurationException, TransformerException {
-		String outputHTML = "/run/media/Edicson/SVG Example/ejemploGrafica/converted.html";
+	public StringWriter printDocument(DOMSource source) throws TransformerConfigurationException, TransformerException {
+		String inputXSL = "file:///run/media/Edicson/SVG%20Example/ejemploGrafica/grafica.xsl";
+		
+		TransformerFactory factory = TransformerFactory.newInstance();
+		StreamSource xslStream = new StreamSource(inputXSL);
+		
+		Transformer transformer = factory.newTransformer(xslStream);
+		transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+		transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+		
+		
+		StringWriter sw = new StringWriter();
+		StreamResult out = new StreamResult(sw);
+		transformer.transform(source, out);
+		System.out.println("************************ Inicio Documento Generado ************************ ");
+		System.out.println(sw.toString());
+		System.out.println("************************ Fin Documento Generado ************************ ");
+		return sw;
+	}
+	
+	
+	public void printDocumentHTML(DOMSource source) throws TransformerConfigurationException, TransformerException {
+		String outputHTML = "/run/media/Edicson/SVG Example/ejemploGrafica/convertedCharges.html";
 		String inputXSL = "file:///run/media/Edicson/SVG%20Example/ejemploGrafica/grafica.xsl";
 		
 		TransformerFactory factory = TransformerFactory.newInstance();
@@ -234,6 +320,7 @@ public class ReporteChargesByDay {
 	public void printContent(DOMSource source){
 		try {
 			// Set up the output transformer
+			System.out.println("Imprimiendo XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
 			TransformerFactory transfac = TransformerFactory.newInstance();
 			Transformer trans = transfac.newTransformer();
 //			trans.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
@@ -252,37 +339,41 @@ public class ReporteChargesByDay {
 		}
 	}
 	
-	public double percent(int number, int mayor){
-		return (number * 100)/mayor;
-	}
-	
-	public double scaleXValue(int dimensionXScreen, int number, int mayor){
-		return (dimensionXScreen * percent(number, mayor)/100) + initialXPosition;
-	}
-	
-	public double scaleYValue(int dimensionXScreen, int number, int mayor){
-		return (dimensionXScreen * percent(number, mayor)/100) + initialYPosition;
-	}
-	
-	public String transformScale(int dimensionYScreen, double valueToTransfor){
-		return String.valueOf(dimensionYScreen - valueToTransfor + adjustmentDimensionYScreen);
+	public double scaleValue(double dimensionScreen, double value){
+		return (value * dimensionScreen)/mayorY;
 	}
 	
 	public static void main(String[] args) {
 		new ReporteChargesByDay();
 	}
 
-	class ComparatorTransactionVO implements Comparator<TransactionVO>{
-		private String comparator;
-		public ComparatorTransactionVO(String comparator){
-			this.comparator = comparator;
-		}
-
+	class SortListByChargesDesc implements Comparator<TransactionVO>{
 		@Override
 		public int compare(TransactionVO transactionVOA, TransactionVO transactionVOB) {
-			if (comparator.equalsIgnoreCase("MinorY"))return Integer.parseInt(transactionVOA.getTotalDateReport()) > Integer.parseInt(transactionVOB.getTotalDateReport()) ? -1 : Integer.parseInt(transactionVOA.getTotalDateReport()) == Integer.parseInt(transactionVOB.getTotalDateReport()) ? 0 : 1;
-			else if (comparator.equalsIgnoreCase("MajorY"))return Integer.parseInt(transactionVOA.getTotalDateReport()) < Integer.parseInt(transactionVOB.getTotalDateReport()) ? -1 : Integer.parseInt(transactionVOA.getTotalDateReport()) == Integer.parseInt(transactionVOB.getTotalDateReport()) ? 0 : 1;
-			else return Integer.parseInt(transactionVOA.getTotalDateReport()) < Integer.parseInt(transactionVOB.getTotalDateReport()) ? -1 : Integer.parseInt(transactionVOA.getTotalDateReport()) == Integer.parseInt(transactionVOB.getTotalDateReport()) ? 0 : 1;
+			return Integer.parseInt(transactionVOA.getTotalDateReport()) < Integer.parseInt(transactionVOB.getTotalDateReport()) ? -1 : Integer.parseInt(transactionVOA.getTotalDateReport()) == Integer.parseInt(transactionVOB.getTotalDateReport()) ? 0 : 1;
+		}
+	}
+	
+	class SortListByChargesAsc implements Comparator<TransactionVO>{
+		@Override
+		public int compare(TransactionVO transactionVOA, TransactionVO transactionVOB) {
+			return Integer.parseInt(transactionVOA.getTotalDateReport()) > Integer.parseInt(transactionVOB.getTotalDateReport()) ? -1 : Integer.parseInt(transactionVOA.getTotalDateReport()) == Integer.parseInt(transactionVOB.getTotalDateReport()) ? 0 : 1;
+		}
+	}
+	
+	class SortListByDate implements Comparator<TransactionVO>{
+		@Override
+		public int compare(TransactionVO transactionVOA, TransactionVO transactionVOB) {
+			
+			if(Utilities.stringToDate(transactionVOA.getDateReport(),2).compareTo(Utilities.stringToDate(transactionVOB.getDateReport(),2)) > 0){
+        		return 1;
+			}else if(Utilities.stringToDate(transactionVOA.getDateReport(),2).compareTo(Utilities.stringToDate(transactionVOB.getDateReport(),2)) < 0){
+        		return -1; 
+			
+			}else if(Utilities.stringToDate(transactionVOA.getDateReport(),2).compareTo(Utilities.stringToDate(transactionVOB.getDateReport(),2)) == 0){
+        		return 0;
+        	}
+			return 1;
 		}
 		
 	}
