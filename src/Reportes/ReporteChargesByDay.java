@@ -250,7 +250,8 @@ public class ReporteChargesByDay {
 			
 			/* Finish LessReference */
 			
-			positionY = scaleYFactor - scaleValue(longYGrahic, minorY) + 20;
+//			positionY = scaleYFactor - scaleValue(longYGrahic, minorY) + 20;
+			positionY = scaleYFactor + 10;
 			Element scaleXReference = document.createElement("scaleXReference");
 			rootElement.appendChild(scaleXReference);
 			value = document.createElement("value");
@@ -340,6 +341,8 @@ public class ReporteChargesByDay {
 	}
 	
 	public double scaleValue(double dimensionScreen, double value){
+		System.out.println("dimensionScreen: " + dimensionScreen);
+		System.out.println("value: " + value);
 		return (value * dimensionScreen)/mayorY;
 	}
 	
