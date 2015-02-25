@@ -3,6 +3,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/BillingBuddyServer"/>
-	<classpathentry kind="lib" path="/run/media/Edicson/Informacion IPG/Servidor/liferay/tomcat-7.0.40/lib/stripe-java-latest.jar"/>
+	<classpathentry kind="lib" path="/home/edicson/Informacion IPG/workspaceBillingBuddy/BillingBuddyServer/lib/stripe-java-latest.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
