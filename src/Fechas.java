@@ -27,13 +27,13 @@ public class Fechas {
 		UserMerchantVO userMerchantVO = new UserMerchantVO();
         userMerchantVO.setUserId("18811");
         ArrayList<UserMerchantVO> listUserMerchants;
-		try {
+		/*try {
 			listUserMerchants = instance.listUserMerchants(userMerchantVO);
 			String merchants = BBUtils.configureUserMerchants(listUserMerchants);
 			System.out.println(merchants);
 		} catch (ProcesorFacadeException e) {
 			e.printStackTrace();
-		}
+		}*/
         
 	}
 
