@@ -1,0 +1,40 @@
+<Configuration status="WARN" strict="true" name="XMLConfigTest" packages="org.apache.logging.log4j.test">
+  
+  <Properties>
+    <Property name="filename">/BBErrors/test.log</Property>
+  </Properties>
+  
+  <Appenders>
+    
+    <Appender type="File" name="exitFile" fileName="${filename}">
+      <Layout type="PatternLayout">
+        <Pattern>%d %p %C{1.} [%t] %m%n</Pattern>
+      </Layout>
+    </Appender>
+    
+    <Appender type="Console" name="exitConsole" target="SYSTEM_OUT">
+      <Layout type="PatternLayout" pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/><!-- class and line number -->
+    </Appender>
+    
+  </Appenders>
+  
+  <Loggers>
+    
+    <Logger name="Json.Log" level="debug" additivity="false">
+      <AppenderRef ref="exitConsole"/>
+    </Logger>
+    
+    <Logger name="Json.Log" level="debug" additivity="false">
+      <AppenderRef ref="exitFile"/>
+    </Logger>
+    
+    <Root level="error">
+      <AppenderRef ref="exitFile"/>
+    </Root>
+    
+    <!-- <Root level="trace" additivity="false" >
+      <AppenderRef ref="exitConsole"/>
+    </Root> -->
+    
+  </Loggers>
+</Configuration>

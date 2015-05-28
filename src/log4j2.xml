@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+    <Configuration status="WARN" strict="true" name="XMLConfigTest" packages="org.apache.logging.log4j.test">
+      <Properties>
+        <Property name="filename1">/BBErrors/test1.log</Property>
+         <Property name="filename2">/BBErrors/test2.log</Property>
+      </Properties>
+      <Filter type="ThresholdFilter" level="trace"/>
+     
+      <Appenders>
+        <Appender type="Console" name="STDOUT">
+          <Layout type="PatternLayout" pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Appender>
+        <Appender type="Console" name="FLOW">
+          <Layout type="PatternLayout" pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
+        </Appender>
+        <Appender type="File" name="File1" fileName="${filename1}">
+          <Layout type="PatternLayout">
+            <Pattern>%d %p %C{1.} [%t] %m%n</Pattern>
+          </Layout>
+        </Appender>
+        <Appender type="File" name="File2" fileName="${filename2}">
+          <Layout type="PatternLayout">
+            <Pattern>%d %p %C{1.} [%t] %m%n</Pattern>
+          </Layout>
+        </Appender>
+      </Appenders>
+     
+      <Loggers>
+        
+        <!-- <Logger name="com.foo.Bar" level="trace" additivity="false">
+          <AppenderRef ref="File1"/>
+        </Logger>  -->       
+       
+		<!-- <Logger name="com.foo.MyApp" level="error" additivity="false">
+          <AppenderRef ref="STDOUT"/>
+        </Logger> -->
+        
+        <Logger name="info1.com.foo.MyApp" level="INFO"  additivity="false">
+          <AppenderRef ref="File1"/>
+        </Logger>
+        
+        <Logger name="info2.com.foo.MyApp" level="INFO"  additivity="false">
+          <AppenderRef ref="File2"/>
+        </Logger>
+        
+        <Root level="ERROR">
+	      <AppenderRef ref="STDOUT"/>
+	    </Root>
+        
+      </Loggers>
+     
+    </Configuration>
